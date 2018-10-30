@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <meta charset="utf-8">
+  <style>
+    .logo{
+        margin: 20px;
+    }
+    path{
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+        animation: draw 5s ease 3;
+    }
+    @keyframes draw{
+      0%{
+        stroke-dashoffset: 1000;
+      }
+      100%{
+        stroke-dashoffset: 0;
+      }
+    }
+  </style>
+  <body>
+    <svg class="logo" width="200" height="200"></svg>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script>
+      let dataName = ['a','b','c','d','e','f','g','h','i','j']
+      let data = new Array(10).fill(0).map((i,index) => {
+        return {
+          key: dataName[index],
+          value: Number((1 + Math.random() * 99).toFixed(0))
+        }
+      })
+
+      let svg = d3.select('svg')
+      let pieSvg = svg.append('g')
+                      .attr('transform','translate(100,100)')
+    
+      let pie = d3.pie()
+       .value((d) => { return d.value})
+       .padAngle(0.02)
+       .sort(null)
+       (data)
+
+      let arc = d3.arc().innerRadius(100 * 0.67).outerRadius(100 - 1)
+
+      let color = d3.scaleOrdinal().domain(dataName)
+                    .range(d3.quantize(t => d3.interpolateSpectral(t * 0.8 + 0.1), data.length).reverse())
+
+      let piePath = pieSvg.append('g')
+                      .selectAll('path')
+                      .data(pie).enter()
+                      .append('path')
+                      .attr('d', arc)
+                      .attr('fill',d => {
+                        return color(d.data.key)
+                      })
+      
+      let pieText = pieSvg.append('g')
+                       .selectAll('text')
+                       .data(pie).enter()
+                       .append('text')
+                       .attr('transform', d => `translate(${arc.centroid(d)})`)
+                       .attr('x', '-0.2em')
+                       .attr('y', '0.5em')
+                       .text((d) => {
+                         return d.data.key
+                       })
+      
+    </script>
+</body>
+</html>
