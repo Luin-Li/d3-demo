@@ -6,8 +6,10 @@
   </style>
   <body>
     <textarea rows="5" cols="100" id="node-data">
-        (山竹, TYPE, 农作物)(山竹, TYPE, 水果)(山竹, TYPE, 热带水果)(山竹, TYPE, 金丝桃科)(山竹, TYPE, 植物)(榴梿属, TYPE, 水果)(榴梿属, TYPE, 榴莲属)(特小凤, TYPE, 水果)(特小凤, TYPE, 植物)(柿, TYPE, 农作物)(柿, TYPE, 中草药)(柿, TYPE, 水果)(柿, TYPE, 柿科)(柿, TYPE, 食品)(葡萄, TYPE, 水果)(葡萄, TYPE, 葡萄)(葡萄, TYPE, 汉语外来词)(葡萄, TYPE, 药用植物)
+        (山竹, TYPE, 农作物)(山竹, TYPE, 水果)(山竹, TYPE, 热带水果)(山竹, TYPE, 金丝桃科)(山竹, TYPE, 植物)(榴梿, TYPE, 水果)(榴梿, TYPE, 榴莲属)(特小凤, TYPE, 水果)(特小凤, TYPE, 植物)(柿, TYPE, 农作物)(柿, TYPE, 中草药)(柿, TYPE, 水果)(柿, TYPE, 柿科)(柿, TYPE, 食品)(葡萄, TYPE, 水果)(葡萄, TYPE, 汉语外来词)(葡萄, TYPE, 药用植物)
     </textarea>
+    <button id="start-draw">开始绘制</button>
+    <button>重新绘制</button>
     <svg class="logo" width="1000" height="1000"></svg>
 
     <script src="https://d3js.org/d3.v5.min.js"></script>
@@ -16,56 +18,93 @@
       let network_g = svg.append('g').attr('transform','translate(500,500)')
       let color = d3.scaleOrdinal(d3.schemeSet3)
   
-      let totalData = [
-        ['山竹'],
-        ['农作物','水果',' 植物','金丝桃科'],
-        ['葡萄','柿','番石榴','榴莲'],
-        ['酸枣','椰子','黑水西瓜']
-      ]
-
-      let nodes = [{id: '山竹', strong: 8, index: 0}]
+      let nodes = []
       let links = []
+      let totalActionData = []
 
-      const getNodeData = (id, index) => {
-        return {id, strong: 5, index}
+      const getNodeData = (id) => {
+        return {id, strong: 5, index: nodes.length}
       }
 
-      let allDataByKey = []
-      const getAllKeyData = (() => { // 输入框数据按关键词分组
+      /**
+      *  输入框数据按关键词分组
+      *  形如{'a':['b','c','d'],}
+      **/
+      let allDataByKey = {}
+      let firstSourceName, firstSource // 中心点
+
+      const getAllKeyData = (() => {
         let dataVal = document.getElementById('node-data').value
         const keyDataReg = /[^(]+(?=\))/g
         let list = dataVal.match(keyDataReg)
+
+        firstSourceName = list[0].split(', ')[0]
+        firstSource = {id: firstSourceName, strong: 20, index: 0}
+        nodes.push(firstSource)
+        console.log(list)
+
         let currentKey = ''
-        let currentKeyIndex = -1
         list.forEach((item) => {
           let oneGroup = item.split(', ')
           if (currentKey !== oneGroup[0]) {
             currentKey = oneGroup[0]
-            currentKeyIndex++
-            allDataByKey.push([currentKey,[oneGroup[2]]])
+            allDataByKey[currentKey] = [oneGroup[2]]
             return true
           }
-          allDataByKey[currentKeyIndex][1].push(oneGroup[2])
-        })
-      })()
 
+          allDataByKey[currentKey].push(oneGroup[2])
+        })
+        console.log('all', allDataByKey)
+      })
+
+      /**
+      * 初始化处理数据：
+      * 1.将输入框数据按关键词分组
+      * 2.将首次渲染的数据存好
+      * 3.将每次连接动画要连的数据放在一个数组
+      **/
       const initData = () => {
-        // 中心点
-        let firstSource = {id: allDataByKey[0][1], strong: 8, index: 0}
-        nodes.push(firstSource)
-        allDataByKey[0][1].forEach((item,index) => {
-          let currentTarget = getNodeData(item, index+1)
+        getAllKeyData()
+
+        let newAllDataByKey = JSON.parse(JSON.stringify(allDataByKey))
+        delete newAllDataByKey[firstSourceName]
+
+        allDataByKey[firstSourceName].forEach((item,index) => {
+
+          // 2.第一组画的图
+          let currentTarget = getNodeData(item)
           nodes.push(currentTarget)
           links.push({source: firstSource, target: currentTarget})
+
+          // 3.依次产生后面画图的关键词
+          totalActionData[index] = []
+          let newAllDataByKey2 = {}
+          for (let nodeItemName in newAllDataByKey) {
+            let nodeItemArr = newAllDataByKey[nodeItemName]
+
+            if (nodeItemArr.indexOf(item) !== -1) {
+              totalActionData[index].push(nodeItemName)
+              continue
+            }
+            newAllDataByKey2[nodeItemName] = nodeItemArr
+          }
+          newAllDataByKey = newAllDataByKey2
         })
+
+        console.log(totalActionData)
       } 
       
-      let [activeNode, activeNodeGroup] = [0, [0, 2, 1]]
-      let activeDataGroup = 1
-
+      initData()
+      /*
+      * 开始d3绘制
+      */
+      let hasDrawNode = {}
+      nodes.forEach((item) => {
+        hasDrawNode[`${item.id}`] = item
+      })
 
       let network = d3.forceSimulation(nodes)
-                      .force('charge',d3.forceManyBody().strength(-500))
+                      .force('charge',d3.forceManyBody().strength(-1000))
                       .force('link',d3.forceLink(links).distance(300))
                       .force("x", d3.forceX())
                       .force("y", d3.forceY())
@@ -104,7 +143,7 @@
         network_g_link = network_g_link.enter().append('line').merge(network_g_link)
 
         network.nodes(nodes)
-        network.force('link',d3.forceLink(links).distance(80))
+        network.force('link',d3.forceLink(links).distance(100))
         network.alpha(1).restart()
         // 新数据加旧数据
         network_g_node = network_g_node.merge(old_network_g_node)
@@ -112,24 +151,33 @@
 
       restart()
 
+      let activeDataGroupIndex = 0
+
       let nodeInterval = d3.interval(() => {
         // 无下一个动作点
-        if ((activeDataGroup - 1) === activeNodeGroup.length) {
-          nodeInterval.stop()
-          return false
-        }
+          if (activeDataGroupIndex === totalActionData.length) {
+            nodeInterval.stop()
+            console.log('break')
+            return false
+          }
+        
+          let nodeLength = nodes.length
+          totalActionData[activeDataGroupIndex++].forEach((data) => { // 该次动画画多少个点
+            let currentSource = getNodeData(data)
+            hasDrawNode[data] = currentSource
+            nodes.push(currentSource)
 
-        let currentSource = nodes[activeNode]
-        totalData[activeDataGroup].forEach((data) => {
-          let index = nodes.length
-          let currentTarget = getNodeData(data, index)
-          nodes.push(currentTarget)
-          links.push({source: currentSource, target: currentTarget})
-          // nodes[0].strong = nodes[0].strong + 10
-        })
-        activeNode = activeNodeGroup[activeDataGroup++]
-        restart()
-      }, 2000, d3.now() + 1000)
+            allDataByKey[data].forEach((nodeItem) => { // 这个点有多少个子节点
+              if (!hasDrawNode.hasOwnProperty(nodeItem)) { // 这是一个新的节点
+                hasDrawNode[nodeItem] = getNodeData(nodeItem)
+                nodes.push(getNodeData(nodeItem))
+              }
+              let currentTarget = nodes[hasDrawNode[nodeItem].index]
+              links.push({source: currentSource, target: currentTarget})
+            })
+          })
+          restart()
+        }, 5000, d3.now() + 1000)
 
       function ticked() {
         network_g_node_circle.attr("cx", function(d) { return d.x; })
@@ -143,6 +191,21 @@
             .attr("y2", function(d) { return d.target.y; });
       }
 
+      function reDraw() {
+
+      }
+
+      // function startDraw() {
+      //   initData()
+      //   restart()
+      //   initNodeInterval()
+      // }
+
+      // const addEventListener = (() => {
+      //   document.getElementById('start-draw').onclick = () => {
+      //     startDraw()
+      //   }
+      // })()
     </script>
 </body>
 </html>
