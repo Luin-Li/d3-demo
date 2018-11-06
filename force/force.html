@@ -94,16 +94,18 @@
         console.log(totalActionData)
       } 
       
-      initData()
+      // initData()
       /*
       * 开始d3绘制
       */
-      let hasDrawNode = {}
-      nodes.forEach((item) => {
-        hasDrawNode[`${item.id}`] = item
-      })
+      let hasDrawNode, network, network_g_node, network_g_node_circle, network_g_node_text, network_g_link
+      const initDraw = (() => {
+        hasDrawNode = {}
+        nodes.forEach((item) => {
+          hasDrawNode[`${item.id}`] = item
+        })
 
-      let network = d3.forceSimulation(nodes)
+        network = d3.forceSimulation(nodes)
                       .force('charge',d3.forceManyBody().strength(-1000))
                       .force('link',d3.forceLink(links).distance(300))
                       .force("x", d3.forceX())
@@ -111,14 +113,17 @@
                       .alphaTarget(1)
                       .on("tick", ticked)
       
-      let network_g_node = network_g.append('g').attr("stroke", "#000")
+        network_g_node = network_g.append('g').attr("stroke", "#000")
                                     .selectAll('.node')
-      let network_g_node_circle = network_g_node.selectAll('.node-circle')                             
-      let network_g_node_text = network_g_node.selectAll('.node-text')                             
+        network_g_node_circle = network_g_node.selectAll('.node-circle')                             
+        network_g_node_text = network_g_node.selectAll('.node-text')                             
 
-      let network_g_link = network_g.append('g')
+        network_g_link = network_g.append('g')
                                     .attr("stroke", "#bdbdbd")
                                     .selectAll('.link')
+      })
+
+      
 
       const restart = () => {
         network_g_node = network_g_node.data(nodes, (d) => {return d.id})
@@ -149,11 +154,13 @@
         network_g_node = network_g_node.merge(old_network_g_node)
       }
 
-      restart()
+      // restart()
 
       let activeDataGroupIndex = 0
 
-      let nodeInterval = d3.interval(() => {
+      let nodeInterval
+      const initNodeInterval = () => {
+        nodeInterval = d3.interval(() => {
         // 无下一个动作点
           if (activeDataGroupIndex === totalActionData.length) {
             nodeInterval.stop()
@@ -178,6 +185,7 @@
           })
           restart()
         }, 5000, d3.now() + 1000)
+      }
 
       function ticked() {
         network_g_node_circle.attr("cx", function(d) { return d.x; })
@@ -195,17 +203,18 @@
 
       }
 
-      // function startDraw() {
-      //   initData()
-      //   restart()
-      //   initNodeInterval()
-      // }
+      function startDraw() {
+        initData()
+        initDraw()
+        restart()
+        initNodeInterval()
+      }
 
-      // const addEventListener = (() => {
-      //   document.getElementById('start-draw').onclick = () => {
-      //     startDraw()
-      //   }
-      // })()
+      const addEventListener = (() => {
+        document.getElementById('start-draw').onclick = () => {
+          startDraw()
+        }
+      })()
     </script>
 </body>
 </html>
