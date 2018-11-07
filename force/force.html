@@ -160,6 +160,7 @@
         // 无下一个动作点
           if (activeDataGroupIndex === totalActionData.length) {
             nodeInterval.stop()
+            nodeInterval = null
             console.log('break')
             return false
           }
