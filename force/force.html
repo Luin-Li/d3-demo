@@ -9,13 +9,12 @@
         (山竹, TYPE, 农作物)(山竹, TYPE, 水果)(山竹, TYPE, 热带水果)(山竹, TYPE, 金丝桃科)(山竹, TYPE, 植物)(榴梿, TYPE, 水果)(榴梿, TYPE, 榴莲属)(特小凤, TYPE, 水果)(特小凤, TYPE, 植物)(柿, TYPE, 农作物)(柿, TYPE, 中草药)(柿, TYPE, 水果)(柿, TYPE, 柿科)(柿, TYPE, 食品)(葡萄, TYPE, 水果)(葡萄, TYPE, 汉语外来词)(葡萄, TYPE, 药用植物)
     </textarea>
     <button id="start-draw">开始绘制</button>
-    <button>重新绘制</button>
-    <svg class="logo" width="1000" height="1000"></svg>
+    <svg class="data-show" width="1920" height="2000"></svg>
 
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script>
-      let svg = d3.select('svg')
-      let network_g = svg.append('g').attr('transform','translate(500,500)')
+      let svg
+      let network_g
       let color = d3.scaleOrdinal(d3.schemeSet3)
   
       let nodes = []
@@ -94,7 +93,6 @@
         console.log(totalActionData)
       } 
       
-      // initData()
       /*
       * 开始d3绘制
       */
@@ -106,7 +104,7 @@
         })
 
         network = d3.forceSimulation(nodes)
-                      .force('charge',d3.forceManyBody().strength(-1000))
+                      .force('charge',d3.forceManyBody().strength(-500))
                       .force('link',d3.forceLink(links).distance(300))
                       .force("x", d3.forceX())
                       .force("y", d3.forceY())
@@ -154,8 +152,6 @@
         network_g_node = network_g_node.merge(old_network_g_node)
       }
 
-      // restart()
-
       let activeDataGroupIndex = 0
 
       let nodeInterval
@@ -168,6 +164,7 @@
             return false
           }
         
+          console.log(`绘制第${activeDataGroupIndex+1}次`)
           let nodeLength = nodes.length
           totalActionData[activeDataGroupIndex++].forEach((data) => { // 该次动画画多少个点
             let currentSource = getNodeData(data)
@@ -204,6 +201,20 @@
       }
 
       function startDraw() {
+        d3.select('svg').select('g').remove()
+        svg = d3.select('svg')
+        network_g = svg.append('g').attr('transform','translate(500,500)')
+        
+        nodes = []
+        links = []
+        totalActionData = []
+        allDataByKey = {}
+        firstSourceName = ''
+        firstSource = null
+
+        activeDataGroupIndex = 0
+        nodeInterval = null
+
         initData()
         initDraw()
         restart()
