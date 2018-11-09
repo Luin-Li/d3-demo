@@ -1,28 +1,46 @@
 <!DOCTYPE html>
-<html lang="zh-cn">
-  <meta charset="utf-8">
+<html lang='zh-cn'>
+  <meta charset='utf-8'>
   <style>
-    
+    svg{
+      display: block;
+    }
+    text.normal{
+      font-size: 0em;
+    }
+    text.show{
+      font-size: 0.8em;
+      fill: #757575;
+    }
+    text.important{
+      font-size: 2em;
+      fill: #616161;
+    }
   </style>
   <body>
-    <textarea rows="5" cols="100" id="node-data">
-        (山竹, TYPE, 农作物)(山竹, TYPE, 水果)(山竹, TYPE, 热带水果)(山竹, TYPE, 金丝桃科)(山竹, TYPE, 植物)(榴梿, TYPE, 水果)(榴梿, TYPE, 榴莲属)(特小凤, TYPE, 水果)(特小凤, TYPE, 植物)(柿, TYPE, 农作物)(柿, TYPE, 中草药)(柿, TYPE, 水果)(柿, TYPE, 柿科)(柿, TYPE, 食品)(葡萄, TYPE, 水果)(葡萄, TYPE, 汉语外来词)(葡萄, TYPE, 药用植物)
-    </textarea>
-    <button id="start-draw">开始绘制</button>
-    <svg class="data-show" width="1920" height="2000"></svg>
+    <svg class='data-show' width='1000' height='2000'></svg>
+    <div>
+        <textarea rows='5' cols='100' id='node-data'>
+            【山竹, TYPE, 农作物】【山竹, TYPE, 水果】【山竹, TYPE, 热带水果】【山竹, TYPE, 金丝桃科】【山竹, TYPE, 植物】【榴梿, TYPE, 水果】【榴梿, TYPE, 榴莲属】【特小凤, TYPE, 水果】【特小凤, TYPE, 植物】【柿, TYPE, 农作物】【柿, TYPE, 中草药】【柿, TYPE, 水果】【柿, TYPE, 柿科】【柿, TYPE, 食品】【葡萄, TYPE, 水果】【葡萄, TYPE, 汉语外来词】【葡萄, TYPE, 药用植物】
+        </textarea>
+        展示的文字的节点<textarea rows='5' cols='20' id='node-key-data'></textarea>
+        <button id='start-draw'>开始绘制</button>
+    </div>
 
-    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src='https://d3js.org/d3.v5.min.js'></script>
     <script>
       let svg
       let network_g
+
       let color = d3.scaleOrdinal(d3.schemeSet3)
+      let dataLimited = 100
   
       let nodes = []
       let links = []
       let totalActionData = []
 
-      const getNodeData = (id) => {
-        return {id, strong: 5, index: nodes.length}
+      const getNodeData = (id, className = 'normal') => {
+        return {id, strong: 5, index: nodes.length, class: className}
       }
 
       /**
@@ -30,17 +48,20 @@
       *  形如{'a':['b','c','d'],}
       **/
       let allDataByKey = {}
+      let keyDataArr = []
       let firstSourceName, firstSource // 中心点
 
       const getAllKeyData = (() => {
         let dataVal = document.getElementById('node-data').value
-        const keyDataReg = /[^(]+(?=\))/g
+        keyDataArr = document.getElementById('node-key-data').value.slice(',')
+        console.log('展示文字',keyDataArr)
+        const keyDataReg = /[^【]+(?=】)/g
         let list = dataVal.match(keyDataReg)
 
         firstSourceName = list[0].split(', ')[0]
-        firstSource = {id: firstSourceName, strong: 20, index: 0}
+        firstSource = {id: firstSourceName, strong: 20, index: 0,class: 'important'}
         nodes.push(firstSource)
-        console.log(list)
+        console.log('alldata',list)
 
         let currentKey = ''
         list.forEach((item) => {
@@ -53,7 +74,7 @@
 
           allDataByKey[currentKey].push(oneGroup[2])
         })
-        console.log('all', allDataByKey)
+        console.log('allGroup', allDataByKey)
       })
 
       /**
@@ -70,27 +91,35 @@
 
         allDataByKey[firstSourceName].forEach((item,index) => {
 
-          // 2.第一组画的图
-          let currentTarget = getNodeData(item)
-          nodes.push(currentTarget)
-          links.push({source: firstSource, target: currentTarget})
+          if (index < dataLimited) {
+            // 2.第一组画的图
+            let keyWordClass = keyDataArr.indexOf(item) === -1 ? 'normal' : 'show'
+            let currentTarget = getNodeData(item, keyWordClass)
+            nodes.push(currentTarget)
+            links.push({source: firstSource, target: currentTarget})
 
-          // 3.依次产生后面画图的关键词
-          totalActionData[index] = []
-          let newAllDataByKey2 = {}
-          for (let nodeItemName in newAllDataByKey) {
-            let nodeItemArr = newAllDataByKey[nodeItemName]
+            // 3.依次产生后面画图的关键词
+            // totalActionData[index] = []
+            let actionDataArr = []
+            let newAllDataByKey2 = {}
+            for (let nodeItemName in newAllDataByKey) {
+              let nodeItemArr = newAllDataByKey[nodeItemName]
 
-            if (nodeItemArr.indexOf(item) !== -1) {
-              totalActionData[index].push(nodeItemName)
-              continue
+              if (nodeItemArr.indexOf(item) !== -1) {
+                actionDataArr.push(nodeItemName)
+                continue
+              }
+              newAllDataByKey2[nodeItemName] = nodeItemArr
             }
-            newAllDataByKey2[nodeItemName] = nodeItemArr
+            newAllDataByKey = newAllDataByKey2
+            if (actionDataArr.length !== 0) {
+              totalActionData.push(actionDataArr)
+            }
           }
-          newAllDataByKey = newAllDataByKey2
+
         })
 
-        console.log(totalActionData)
+        console.log('allActionGroup',totalActionData)
       } 
       
       /*
@@ -104,20 +133,21 @@
         })
 
         network = d3.forceSimulation(nodes)
-                      .force('charge',d3.forceManyBody().strength(-500))
-                      .force('link',d3.forceLink(links).distance(300))
-                      .force("x", d3.forceX())
-                      .force("y", d3.forceY())
+                      .force('charge',d3.forceManyBody().strength(-50))
+                      .force('link',d3.forceLink(links).distance(500))
+                      .force('center', d3.forceCenter(100, 100))
+                      .force('x', d3.forceX())
+                      .force('y', d3.forceY())
                       .alphaTarget(1)
-                      .on("tick", ticked)
+                      .on('tick', ticked)
       
-        network_g_node = network_g.append('g').attr("stroke", "#000")
+        network_g_node = network_g.append('g')
                                     .selectAll('.node')
         network_g_node_circle = network_g_node.selectAll('.node-circle')                             
         network_g_node_text = network_g_node.selectAll('.node-text')                             
 
         network_g_link = network_g.append('g')
-                                    .attr("stroke", "#bdbdbd")
+                                    .attr('stroke', '#bdbdbd')
                                     .selectAll('.link')
       })
 
@@ -140,6 +170,9 @@
         network_g_node_text = network_g_node.append('text')
           .attr('dy','.35em')
           .text((d) => {return d.id}).merge(network_g_node_text)
+          .attr('class', (d) => {
+            return d.class
+          })
 
         network_g_link = network_g_link.data(links,(d) => {return `${d.source.id}-${d.target.id}`})
         network_g_link.exit().remove()
@@ -160,7 +193,6 @@
         // 无下一个动作点
           if (activeDataGroupIndex === totalActionData.length) {
             nodeInterval.stop()
-            nodeInterval = null
             console.log('break')
             return false
           }
@@ -168,13 +200,18 @@
           console.log(`绘制第${activeDataGroupIndex+1}次`)
           let nodeLength = nodes.length
           totalActionData[activeDataGroupIndex++].forEach((data) => { // 该次动画画多少个点
-            let currentSource = getNodeData(data)
+            let keyWordClass = keyDataArr.indexOf(data) === -1 ? 'normal' : 'show'
+            let currentSource = getNodeData(data,keyWordClass)
             hasDrawNode[data] = currentSource
             nodes.push(currentSource)
 
-            allDataByKey[data].forEach((nodeItem) => { // 这个点有多少个子节点
+            allDataByKey[data].forEach((nodeItem, nodeIndex) => { // 这个点有多少个子节点
+              if (nodeIndex + 1 > dataLimited) {
+                return false
+              }
               if (!hasDrawNode.hasOwnProperty(nodeItem)) { // 这是一个新的节点
-                hasDrawNode[nodeItem] = getNodeData(nodeItem)
+                let nodeItemClass = keyDataArr.indexOf(nodeItem) === -1 ? 'normal' : 'show'
+                hasDrawNode[nodeItem] = getNodeData(nodeItem, nodeItemClass)
                 nodes.push(getNodeData(nodeItem))
               }
               let currentTarget = nodes[hasDrawNode[nodeItem].index]
@@ -182,24 +219,21 @@
             })
           })
           restart()
-        }, 5000, d3.now() + 1000)
+        }, 10000, d3.now() + 1000)
       }
 
       function ticked() {
-        network_g_node_circle.attr("cx", function(d) { return d.x; })
-            .attr("cy", function(d) { return d.y; })
-        network_g_node_text.attr("x", function(d) { return d.x; })
-            .attr("y", function(d) { return d.y; })
+        network_g_node_circle.attr('cx', function(d) { return d.x; })
+            .attr('cy', function(d) { return d.y; })
+        network_g_node_text.attr('x', function(d) { return d.x; })
+            .attr('y', function(d) { return d.y; })
 
-        network_g_link.attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
+        network_g_link.attr('x1', function(d) { return d.source.x; })
+            .attr('y1', function(d) { return d.source.y; })
+            .attr('x2', function(d) { return d.target.x; })
+            .attr('y2', function(d) { return d.target.y; });
       }
 
-      function reDraw() {
-
-      }
 
       function startDraw() {
         d3.select('svg').select('g').remove()
@@ -210,6 +244,7 @@
         links = []
         totalActionData = []
         allDataByKey = {}
+        keyDataArr = []
         firstSourceName = ''
         firstSource = null
 
